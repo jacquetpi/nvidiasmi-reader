@@ -48,7 +48,7 @@ def __convert_cg_to_dict(header : list, data_single_gc : list):
     for position, query in enumerate(SMI_QUERY):
         if 'N/A' in data_single_gc[position]:
             value = 'NA'
-        elif header[position].contains('['): # if a unit is written, like [MiB], we have to strip it from value
+        elif '[' in header[position]: # if a unit is written, like [MiB], we have to strip it from value
             value = float(re.sub("[^\d\.]", "", data_single_gc[position]))
         else: 
             value = data_single_gc[position]
