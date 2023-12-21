@@ -46,7 +46,7 @@ def discover_smi():
 def __convert_cg_to_dict(header : list, data_single_gc : list):
     results = {}
     for position, query in enumerate(SMI_QUERY):
-        if data_single_gc[position].contains('N/A'):
+        if 'N/A' in data_single_gc[position]:
             value = 'NA'
         elif header[position].contains('['): # if a unit is written, like [MiB], we have to strip it from value
             value = float(re.sub("[^\d\.]", "", data_single_gc[position]))
@@ -118,7 +118,7 @@ if __name__ == '__main__':
     try:
         # Find domains
         print('>SMI GC found:')
-        for gc in discover_smi(): print(gc)
+        for gc in discover_smi(): print(gc[0])
         # Init output
         with open(OUTPUT_FILE, 'w') as f: f.write(OUTPUT_HEADER + OUTPUT_NL)
         # Launch
