@@ -1,15 +1,16 @@
-import sys, getopt, time
+import sys, getopt, re, time
 import subprocess as sp
 from os import listdir
 from os.path import isfile, join, exists
 
-OUTPUT_FILE   = 'consumption.csv'
-OUTPUT_HEADER = 'timestamp,domain,measure'
-OUTPUT_NL     = '\n'
-DELAY_S       = 5
-PRECISION     = 5
-LIVE_DISPLAY = False
-EXPLICIT_USAGE  = None
+SMI_QUERY      = ['index','gpu_name','utilization.gpu','temperature.gpu','pstate','clocks.current.graphics','clocks.current.sm','clocks.current.memory','clocks.current.video','utilization.memory','memory.used','memory.free','memory.total','power.draw','power.max_limit','fan.speed']
+SMI_QUERY_FLAT = ','.join(SMI_QUERY)
+OUTPUT_FILE    = 'consumption.csv'
+OUTPUT_HEADER  = 'timestamp,' + SMI_QUERY_FLAT
+OUTPUT_NL      = '\n'
+DELAY_S        = 5
+PRECISION      = 5
+LIVE_DISPLAY   = False
 
 def print_usage():
     print('python3 nvidiasmi-reader.py [--help] [--live] [--output=' + OUTPUT_FILE + '] [--delay=' + str(DELAY_S) + ' (in sec)] [--precision=' + str(PRECISION) + ' (number of decimal)]')
@@ -17,17 +18,49 @@ def print_usage():
 ###########################################
 # Read NVIDIA SMI
 ###########################################
-def read_gpu_memory():
-    output_to_list = lambda x: x.decode('ascii').split('\n')[:-1]
-    ACCEPTABLE_AVAILABLE_MEMORY = 1024
-    COMMAND = "nvidia-smi --query-gpu=memory.used --format=csv"
+##########
+# nvidia-smi -L
+# nvidia-smi --help-query-gpu
+
+#"utilization.gpu"
+#Percent of time over the past sample period during which one or more kernels was executing on the GPU.
+#The sample period may be between 1 second and 1/6 second depending on the product.
+
+#"utilization.memory"
+#Percent of time over the past sample period during which global (device) memory was being read or written.
+#The sample period may be between 1 second and 1/6 second depending on the product.
+##########
+
+def __generic_smi(command : str):
     try:
-        memory_use_info = output_to_list(sp.check_output(COMMAND.split(),stderr=sp.STDOUT))[1:]
+        csv_like_data = sp.check_output(command.split(),stderr=sp.STDOUT).decode('ascii').split('\n')
+        header = csv_like_data [0].split(',')
+        data = [cg_data.split(',') for cg_data in csv_like_data[1:-1]] # end with ''
     except sp.CalledProcessError as e:
         raise RuntimeError("command '{}' return with error (code {}): {}".format(e.cmd, e.returncode, e.output))
-    memory_use_values = [int(x.split()[0]) for i, x in enumerate(memory_use_info)]
-    return {}
+    return header, data
 
+def discover_smi():
+    COMMAND = "nvidia-smi -L"
+    _, data = __generic_smi(COMMAND)
+    return data
+
+def __convert_cg_to_dict(header : list, data_single_gc : list):
+    results = {}
+    for position, query in enumerate(SMI_QUERY):
+        if data_single_gc[position].contains('N/A'):
+            value = 'NA'
+        elif header[position].contains('['): # if a unit is written, like [MiB], we have to strip it from value
+            value = float(re.sub("[^\d\.]", "", data_single_gc[position]))
+        else: 
+            value = data_single_gc[position]
+        results[query] = value
+    return results
+
+def query_smi():
+    COMMAND = "nvidia-smi --query-gpu=" + SMI_QUERY_FLAT + "--format=csv"
+    header, data = __generic_smi(COMMAND)
+    return [__convert_cg_to_dict(header, data_single_gc) for data_single_gc in data]
 
 ###########################################
 # Main loop, read periodically
@@ -37,24 +70,25 @@ def loop_read():
     while True:
         time_begin = time.time_ns()
 
-        smi_measures = read_gpu_memory()
+        smi_measures = query_smi()
         output(smi_measures=smi_measures, time_since_launch=int((time_begin-launch_at)/(10**9)))
 
         time_to_sleep = (DELAY_S*10**9) - (time.time_ns() - time_begin)
         if time_to_sleep>0: time.sleep(time_to_sleep/10**9)
         else: print('Warning: overlap iteration', -(time_to_sleep/10**9), 's')
 
-def output(smi_measures : dict, time_since_launch : int):
+def output(smi_measures : list, time_since_launch : int):
 
     if LIVE_DISPLAY and smi_measures:
-        for domain, measure in smi_measures.items():
-            print(domain, measure)
+        for gc_as_dict in smi_measures:
+            print(gc_as_dict['index'], gc_as_dict['utilization.gpu'] + '%', gc_as_dict['power.draw'] + '/' + gc_as_dict['power.max_limit'] + ' W')
         print('---')
 
     # Dump reading
     with open(OUTPUT_FILE, 'a') as f:
-        for domain, measure in smi_measures.items():
-            f.write(str(time_since_launch) + ',' + domain + ',' + str(measure) + OUTPUT_NL)
+        for gc_as_dict in smi_measures:
+            values = ','.join([gc_as_dict[key] for key in SMI_QUERY]) # to have a fixed order
+            f.write(str(time_since_launch) + ',' + values + OUTPUT_NL)
 ###########################################
 # Entrypoint, manage arguments
 ###########################################
@@ -84,6 +118,7 @@ if __name__ == '__main__':
     try:
         # Find domains
         print('>SMI GC found:')
+        for gc in discover_smi(): print(gc)
         # Init output
         with open(OUTPUT_FILE, 'w') as f: f.write(OUTPUT_HEADER + OUTPUT_NL)
         # Launch
