@@ -51,8 +51,7 @@ def __convert_cg_to_dict(header : list, data_single_gc : list):
         elif '[' in header[position]: # if a unit is written, like [MiB], we have to strip it from value
             value = float(re.sub("[^\d\.]", "", data_single_gc[position]))
         else:
-            value = data_single_gc[position]
-            value.strip()
+            value = data_single_gc[position].strip()
         results[query] = value
     return results
 
