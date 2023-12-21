@@ -4,7 +4,7 @@ Easily measure the power consumption of NVIDA graphic cards
 
 ## Features
 
-Dump in a CSV file NVIDIA GC indicators (including the power consumption) using $nvidia-smi$ (must be pre-installed)
+Dump in a CSV file NVIDIA GC indicators (including the power consumption) using ```nvidia-smi``` (must be pre-installed)
 
 ## Usage
 
