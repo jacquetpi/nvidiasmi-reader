@@ -87,7 +87,7 @@ def output(smi_measures : list, time_since_launch : int):
     # Dump reading
     with open(OUTPUT_FILE, 'a') as f:
         for gc_as_dict in smi_measures:
-            values = ','.join([gc_as_dict[key] for key in SMI_QUERY]) # to have a fixed order
+            values = ','.join([str(gc_as_dict[key]) for key in SMI_QUERY]) # to have a fixed order
             f.write(str(time_since_launch) + ',' + values + OUTPUT_NL)
 ###########################################
 # Entrypoint, manage arguments
