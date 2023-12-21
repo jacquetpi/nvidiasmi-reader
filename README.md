@@ -4,15 +4,13 @@ Easily measure the power consumption of NVIDA graphic cards
 
 ## Features
 
-TODO
+Dump in a CSV file NVIDIA GC indicators (including the power consumption) using $nvidia-smi$ (must be pre-installed)
 
 ## Usage
 
 ```bash
 python3 nvidiasmi-reader.py --help
 ```
-
-/!\ RAPL access may require root rights
 
 To dump on default ```consumption.csv``` while also displaying measures to the console
 ```bash
