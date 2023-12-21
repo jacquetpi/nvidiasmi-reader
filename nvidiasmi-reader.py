@@ -34,16 +34,14 @@ def print_usage():
 def __generic_smi(command : str):
     try:
         csv_like_data = sp.check_output(command.split(),stderr=sp.STDOUT).decode('ascii').split('\n')
-        header = csv_like_data [0].split(',')
-        data = [cg_data.split(',') for cg_data in csv_like_data[1:-1]] # end with ''
+        smi_data = [cg_data.split(',') for cg_data in csv_like_data[:-1]] # end with ''
     except sp.CalledProcessError as e:
         raise RuntimeError("command '{}' return with error (code {}): {}".format(e.cmd, e.returncode, e.output))
-    return header, data
+    return smi_data
 
 def discover_smi():
     COMMAND = "nvidia-smi -L"
-    _, data = __generic_smi(COMMAND)
-    return data
+    return __generic_smi(COMMAND)
 
 def __convert_cg_to_dict(header : list, data_single_gc : list):
     results = {}
@@ -58,8 +56,10 @@ def __convert_cg_to_dict(header : list, data_single_gc : list):
     return results
 
 def query_smi():
-    COMMAND = "nvidia-smi --query-gpu=" + SMI_QUERY_FLAT + "--format=csv"
-    header, data = __generic_smi(COMMAND)
+    COMMAND = "nvidia-smi --query-gpu=" + SMI_QUERY_FLAT + " --format=csv"
+    smi_data = __generic_smi(COMMAND)
+    header = smi_data[0]
+    data   = smi_data[1:]
     return [__convert_cg_to_dict(header, data_single_gc) for data_single_gc in data]
 
 ###########################################
