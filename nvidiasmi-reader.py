@@ -80,8 +80,13 @@ def loop_read():
 def output(smi_measures : list, time_since_launch : int):
 
     if LIVE_DISPLAY and smi_measures:
+        total_draw  = 0
+        total_limit = 0
         for gc_as_dict in smi_measures:
-            print(gc_as_dict['index'], gc_as_dict['utilization.gpu'] + '%', gc_as_dict['power.draw'] + '/' + gc_as_dict['power.max_limit'] + ' W')
+            print(gc_as_dict['index'], str(gc_as_dict['utilization.gpu']) + '%', str(gc_as_dict['power.draw']) + '/' + str(gc_as_dict['power.max_limit']) + ' W')
+            total_draw += gc_as_dict['power.draw']
+            total_limit+= gc_as_dict['power.max_limit']
+        print('Total:', str(total_draw) + '/' + str(total_limit) + ' W')
         print('---')
 
     # Dump reading
